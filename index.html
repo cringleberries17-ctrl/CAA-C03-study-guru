@@ -45,6 +45,22 @@
     width:30px;height:3px;border-radius:0 0 3px 3px;background:#E48312;
   }
 
+  .zoombar{
+    position:fixed;top:calc(8px + env(safe-area-inset-top));right:8px;z-index:50;
+    display:flex;align-items:center;gap:2px;background:rgba(27,40,54,.88);backdrop-filter:blur(6px);
+    border-radius:999px;padding:4px;box-shadow:0 2px 10px rgba(0,0,0,.3);
+  }
+  .zoombar button{
+    width:32px;height:32px;border:none;border-radius:999px;background:none;color:#fff;
+    font-size:17px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;
+    display:flex;align-items:center;justify-content:center;font-family:inherit;
+  }
+  .zoombar button:active{background:rgba(255,255,255,.18)}
+  .zoombar .pct{
+    font-size:11px;font-weight:600;color:#C9D3DD;min-width:36px;text-align:center;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+  }
+
   @media (prefers-reduced-motion:reduce){ *{transition:none!important} }
 </style>
 </head>
@@ -53,6 +69,12 @@
 <div class="frames">
   <iframe id="frameNotes" class="active" src="aws-study-notes.html" title="AWS Study Notes"></iframe>
   <iframe id="frameExam" src="saa-c03-mock-exam_2.html" title="SAA-C03 Mock Exam"></iframe>
+</div>
+
+<div class="zoombar" role="group" aria-label="Zoom controls">
+  <button id="zoomOut" aria-label="Zoom out">−</button>
+  <span class="pct" id="zoomPct" title="Tap to reset">100%</span>
+  <button id="zoomIn" aria-label="Zoom in">+</button>
 </div>
 
 <nav class="tabbar" role="tablist" aria-label="Sections">
@@ -93,6 +115,35 @@ if("serviceWorker" in navigator && location.protocol !== "file:"){
     navigator.serviceWorker.register("sw.js").catch(()=>{});
   });
 }
+
+/* ---------- zoom controls ----------
+   iOS disables native pinch-zoom for home-screen standalone apps, so we
+   scale the (same-origin) iframe documents ourselves via CSS zoom. */
+const ZOOM_KEY = "saa-c03-zoom";
+const ZOOM_MIN = 0.7, ZOOM_MAX = 1.6, ZOOM_STEP = 0.1;
+let zoom = 1;
+try{ zoom = parseFloat(localStorage.getItem(ZOOM_KEY)) || 1; }catch(e){}
+
+function applyZoom(){
+  [tabs.notes.frame, tabs.exam.frame].forEach(f=>{
+    try{ f.contentDocument.documentElement.style.zoom = zoom; }catch(e){}
+  });
+  $zoomPct.textContent = Math.round(zoom * 100) + "%";
+  try{ localStorage.setItem(ZOOM_KEY, zoom); }catch(e){}
+}
+function setZoom(z){
+  zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(z * 100) / 100));
+  applyZoom();
+}
+
+const $zoomPct = document.getElementById("zoomPct");
+document.getElementById("zoomOut").onclick = ()=> setZoom(zoom - ZOOM_STEP);
+document.getElementById("zoomIn").onclick  = ()=> setZoom(zoom + ZOOM_STEP);
+$zoomPct.onclick = ()=> setZoom(1);
+
+tabs.notes.frame.addEventListener("load", applyZoom);
+tabs.exam.frame.addEventListener("load", applyZoom);
+applyZoom();
 </script>
 </body>
 </html>
