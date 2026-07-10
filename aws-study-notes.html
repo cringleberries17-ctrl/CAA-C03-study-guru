@@ -169,7 +169,7 @@
     </div>
     <div class="results" id="results"></div>
     <ul class="chlist" id="chlist"></ul>
-    <div class="side-foot">Progress marks reset when the page reloads. Pair with the mock-exam app to test each section after reading.</div>
+    <div class="side-foot">Progress is saved on this device and picks up where you left off. Pair with the mock-exam app to test each section after reading.</div>
   </nav>
 
   <main class="main">
@@ -197,6 +197,15 @@ const $ = id => document.getElementById(id);
 let cur = 0;
 const done = new Set();
 let pendingHighlight = null;
+
+/* ---------- progress persistence ---------- */
+const PROGRESS_KEY = "saa-notes-progress-v1";
+function saveProgress(){
+  try{ localStorage.setItem(PROGRESS_KEY, JSON.stringify({cur, done: Array.from(done)})); }catch(e){}
+}
+function loadProgress(){
+  try{ return JSON.parse(localStorage.getItem(PROGRESS_KEY)); }catch(e){ return null; }
+}
 
 /* ---------- sidebar ---------- */
 function renderList(){
@@ -229,6 +238,7 @@ function open(i, anchor){
   $("nextBtn").disabled = !next; $("nextT").textContent = next ? next.num+". "+next.title : "—";
   if(pendingHighlight){ highlight(pendingHighlight); pendingHighlight = null; }
   else window.scrollTo({top:0});
+  saveProgress();
 }
 
 function decorateTips(){
@@ -274,7 +284,7 @@ function updateDoneBtn(){
 }
 $("doneBtn").onclick = ()=>{
   done.has(cur) ? done.delete(cur) : done.add(cur);
-  updateDoneBtn(); renderList();
+  updateDoneBtn(); renderList(); saveProgress();
 };
 
 /* ---------- search ---------- */
@@ -350,8 +360,11 @@ document.addEventListener("keydown", e=>{
 function esc(s){ return s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 function escReg(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
 
+const saved = loadProgress();
+if(saved && Array.isArray(saved.done)) saved.done.forEach(i=>{ if(CHAPTERS[i]) done.add(i); });
+const startAt = saved && Number.isInteger(saved.cur) && CHAPTERS[saved.cur] ? saved.cur : 0;
 renderList();
-open(0);
+open(startAt);
 </script>
 </body>
 </html>

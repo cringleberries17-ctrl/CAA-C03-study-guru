@@ -57,6 +57,13 @@
     padding:28px;box-shadow:0 1px 2px rgba(27,39,51,.05);
   }
 
+  /* ---------- resume banner ---------- */
+  .resume-banner{
+    display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;
+    background:var(--good-bg);border:1px solid rgba(46,125,91,.35);border-radius:10px;
+    padding:14px 16px;margin-bottom:22px;
+  }
+
   /* ---------- start screen ---------- */
   .start h2{font-family:var(--font-display);font-size:30px;font-weight:600;margin-bottom:10px}
   .start p.lead{color:var(--ink-soft);margin-bottom:24px;max-width:60ch}
@@ -231,6 +238,17 @@
     <h2>Practice like it's exam day.</h2>
     <p class="lead">Your imported SAA-C03 question bank — 683 questions with answers and explanations. Filter by question range to study in sections, or take a full 65-question mock exam. Submit each answer to see instantly whether you were right, with a full explanation. You can also import your own question bank.</p>
 
+    <div class="resume-banner hidden" id="resumeBanner">
+      <div>
+        <b>Resume your exam?</b>
+        <div id="resumeInfo" style="font-size:13px;color:var(--ink-soft);margin-top:2px"></div>
+      </div>
+      <div class="btn-row" style="margin-top:0">
+        <button class="btn" id="btnResume">Resume</button>
+        <button class="btn ghost" id="btnDiscardResume">Discard</button>
+      </div>
+    </div>
+
     <div class="field">
       <label>Number of questions</label>
       <div class="seg" id="segCount"></div>
@@ -345,6 +363,23 @@ let idx = 0;
 let cfg = { count: 65, domain: "All domains", shuffle: true };
 
 const $ = id => document.getElementById(id);
+
+/* ---------- exam progress persistence ---------- */
+const EXAM_KEY = "saa-exam-progress-v1";
+function saveExamProgress(){
+  try{ localStorage.setItem(EXAM_KEY, JSON.stringify({exam, answers, idx})); }catch(e){}
+}
+function clearExamProgress(){
+  try{ localStorage.removeItem(EXAM_KEY); }catch(e){}
+}
+function loadExamProgress(){
+  try{
+    const data = JSON.parse(localStorage.getItem(EXAM_KEY));
+    if(!data || !Array.isArray(data.exam) || !data.exam.length || !Array.isArray(data.answers)) return null;
+    return data;
+  }catch(e){ return null; }
+}
+
 const screens = ["screenStart","screenImport","screenExam","screenResults"];
 function show(id){ screens.forEach(s => $(s).classList.toggle("hidden", s!==id)); window.scrollTo({top:0}); }
 
@@ -371,6 +406,16 @@ function renderStart(){
     segD.appendChild(b);
   });
   $("headerStats").innerHTML = "<b>"+bank.length+"</b> questions loaded";
+  checkResume();
+}
+
+function checkResume(){
+  const saved = loadExamProgress();
+  const banner = $("resumeBanner");
+  if(!saved){ banner.classList.add("hidden"); return; }
+  const answered = saved.answers.filter(a=>a.submitted).length;
+  $("resumeInfo").textContent = "Question "+(saved.idx+1)+" of "+saved.exam.length+" · "+answered+" answered so far";
+  banner.classList.remove("hidden");
 }
 function filteredBank(){
   return cfg.domain==="All domains" ? bank : bank.filter(q=>q.domain===cfg.domain);
@@ -459,6 +504,8 @@ function renderQuestion(){
   $("btnSubmit").disabled = st.selected.length === 0;
   $("btnNext").classList.toggle("hidden", !(st.submitted && !isLast));
   $("btnFinish").classList.toggle("hidden", !(st.submitted && isLast));
+
+  saveExamProgress();
 }
 
 function toggleSelect(i){
@@ -487,6 +534,7 @@ function submitAnswer(){
 
 /* ---------- results ---------- */
 function finishExam(){
+  clearExamProgress();
   const total = exam.length;
   const right = answers.filter(a=>a.correct).length;
   const pct = total ? Math.round(right/total*100) : 0;
@@ -563,6 +611,17 @@ function escapeHTML(s){
 }
 
 $("btnStart").onclick = startExam;
+$("btnResume").onclick = ()=>{
+  const saved = loadExamProgress();
+  if(!saved) return;
+  exam = saved.exam; answers = saved.answers; idx = Math.min(saved.idx, exam.length-1);
+  show("screenExam");
+  renderQuestion();
+};
+$("btnDiscardResume").onclick = ()=>{
+  clearExamProgress();
+  $("resumeBanner").classList.add("hidden");
+};
 $("btnImportOpen").onclick = ()=>{ $("importMsg").textContent=""; show("screenImport"); };
 $("btnImportBack").onclick = ()=> show("screenStart");
 $("btnImportLoad").onclick = loadImport;
