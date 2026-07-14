@@ -1,4 +1,4 @@
-const CACHE = "saa-c03-app-v4";
+const CACHE = "saa-c03-app-v5";
 const ASSETS = [
   "./index.html",
   "./aws-study-notes.html",
